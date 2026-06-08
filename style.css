@@ -56,7 +56,7 @@ button { cursor: pointer; font-family: var(--font); border: none; background: no
   font-size: clamp(26px, 4vw, 40px);
   font-weight: 800;
   line-height: 1.15;
-  color: var(--dark);
+  color: #FF6B35;
   margin-bottom: 12px;
 }
 
