@@ -1175,317 +1175,274 @@
   <!-- ══════════════════════════════════════════
        SCRIPTS
   ══════════════════════════════════════════ -->
-  <script>
-  /* ════════════════════════════════════════════
-     1. EMAILJS — Contact Form → Gmail
-     ════════════════════════════════════════════
-     SETUP STEPS (one-time, takes 5 minutes):
-     ① Go to https://www.emailjs.com and create a FREE account
-     ② Add a new Email Service → choose Gmail → connect lokendrabayak85@gmail.com
-        Copy the Service ID (e.g. "service_abc123") → replace YOUR_SERVICE_ID below
-     ③ Create an Email Template → use these variables in the template:
-        {{from_name}}, {{from_email}}, {{phone}}, {{service}}, {{message}}
-        Set "To Email" = lokendrabayak85@gmail.com
-        Copy the Template ID (e.g. "template_xyz789") → replace YOUR_TEMPLATE_ID below
-     ④ Go to Account → API Keys → copy your Public Key → replace YOUR_PUBLIC_KEY below
-  */
-  var EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';   // ← replace
-  var EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';  // ← replace
-  var EMAILJS_PUBLIC_KEY  = 'YOUR_PUBLIC_KEY';   // ← replace
+ <script>
 
-  // Initialize EmailJS
-  (function(){
-    if (typeof emailjs !== 'undefined') {
-      emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-    }
-  })();
+/* ════════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════════ */
 
-  function sendEmail(e) {
-    e.preventDefault();
-    var name    = document.getElementById('cf_name').value.trim();
-    var email   = document.getElementById('cf_email').value.trim();
-    var phone   = document.getElementById('cf_phone').value.trim() || 'Not provided';
-    var service = document.getElementById('cf_service').value || 'Not specified';
-    var message = document.getElementById('cf_message').value.trim();
+const CONFIG = {
+  EMAILJS_PUBLIC_KEY: "WqjAbjA0htqJBcvXz",
+  EMAILJS_SERVICE_ID: "service_ryuhjma",
+  EMAILJS_TEMPLATE_ID: "template_mhhfryi",
+  WHATSAPP_NUMBER: "9779843899427"
+};
 
-    var btn = e.target.querySelector('button[type="submit"]');
+
+/* ════════════════════════════════════════════
+   EMAILJS INIT
+════════════════════════════════════════════ */
+
+(function () {
+  if (typeof emailjs !== "undefined") {
+    emailjs.init(CONFIG.EMAILJS_PUBLIC_KEY);
+  }
+})();
+
+
+/* ════════════════════════════════════════════
+   EMAIL SEND MESSAGE (FIXED PRO VERSION)
+════════════════════════════════════════════ */
+
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("contactForm");
+  if (form) form.addEventListener("submit", sendEmail);
+});
+
+async function sendEmail(e) {
+  e.preventDefault();
+
+  const btn = e.target.querySelector("button[type='submit']");
+
+  if (btn) {
     btn.disabled = true;
-    btn.textContent = 'Sending...';
-
-    var params = {
-      from_name : name,
-      from_email: email,
-      phone     : phone,
-      service   : service,
-      message   : message,
-      reply_to  : email
-    };
-
-    if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY') {
-      emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
-        .then(function() {
-          document.getElementById('formSuccess').style.display = 'block';
-          document.getElementById('formError').style.display   = 'none';
-          document.getElementById('contactForm').reset();
-        })
-        .catch(function() {
-          document.getElementById('formError').style.display   = 'block';
-          document.getElementById('formSuccess').style.display = 'none';
-        })
-        .finally(function() {
-          btn.disabled = false;
-          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg> Send Message';
-        });
-    } else {
-      /* Fallback: open WhatsApp with form data if EmailJS not yet configured */
-      var waText =
-        '📬 *New Message from Portfolio*\n\n' +
-        '👤 *Name:* '    + name    + '\n' +
-        '📧 *Email:* '   + email   + '\n' +
-        '📞 *Phone:* '   + phone   + '\n' +
-        '🛠️ *Service:* ' + service + '\n\n' +
-        '💬 *Message:*\n' + message;
-      window.open('https://wa.me/9779843899427?text=' + encodeURIComponent(waText), '_blank');
-      document.getElementById('formSuccess').style.display = 'block';
-      document.getElementById('formSuccess').textContent = '✅ Opening WhatsApp... (Set up EmailJS to receive emails directly to your Gmail)';
-      document.getElementById('contactForm').reset();
-      btn.disabled = false;
-      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg> Send Message';
-    }
+    btn.innerText = "Sending...";
   }
 
-
-  /* ════════════════════════════════════════════
-     2. WHATSAPP CHATBOT — Auto-reply engine
-     ════════════════════════════════════════════ */
-  var WA_NUMBER = '9779843899427';
-  var waOpen = false;
-  var waInitialized = false;
-
-  /* ── Bot conversation flow ── */
-  var waBotFlow = {
-    welcome: {
-      text: "👋 Hi there! I'm Lokendra's virtual assistant.\n\nHow can I help you today?",
-      quickReplies: [
-        { label: '🎬 Acting', key: 'acting' },
-        { label: '✂️ Video Editing', key: 'editing' },
-        { label: '🎵 Music', key: 'music' },
-        { label: '📱 Social Media', key: 'social' },
-        { label: '💰 Pricing', key: 'pricing' },
-        { label: '📞 Contact', key: 'contact' }
-      ]
-    },
-    acting: {
-      text: "🎬 *Acting Services*\n\nLokendra is available for:\n• Short films & web series\n• Brand commercials & ads\n• Digital campaigns\n• Corporate videos\n\nHe has 5+ years of experience and 10M+ views on his content.",
-      quickReplies: [
-        { label: '💰 Rates', key: 'pricing' },
-        { label: '📂 Portfolio', key: 'portfolio' },
-        { label: '📞 Book Now', key: 'contact' }
-      ]
-    },
-    editing: {
-      text: "✂️ *Video Editing Services*\n\nSpecializing in:\n• Cinematic color grading\n• Motion graphics & VFX\n• YouTube & social content\n• Brand reels & commercials\n\nTools: Premiere Pro, After Effects, DaVinci Resolve",
-      quickReplies: [
-        { label: '💰 Rates', key: 'pricing' },
-        { label: '🎥 See Work', key: 'portfolio' },
-        { label: '📞 Get Quote', key: 'contact' }
-      ]
-    },
-    music: {
-      text: "🎵 *Music Production*\n\nServices include:\n• Original compositions\n• Background scores\n• Full music production\n• Sound design & mixing\n• Music video direction\n\nBlending traditional Nepali and modern sounds.",
-      quickReplies: [
-        { label: '💰 Rates', key: 'pricing' },
-        { label: '📂 Listen', key: 'portfolio' },
-        { label: '📞 Discuss Project', key: 'contact' }
-      ]
-    },
-    social: {
-      text: "📱 *Social Media Management*\n\nWhat's included:\n• Content strategy & planning\n• Post creation & scheduling\n• Community management\n• Analytics & reporting\n• Brand growth campaigns\n\nPrevious result: 2K → 35K followers in 3 months! 🚀",
-      quickReplies: [
-        { label: '💰 Packages', key: 'pricing' },
-        { label: '📞 Start Today', key: 'contact' }
-      ]
-    },
-    pricing: {
-      text: "💰 *Pricing*\n\nPricing depends on project scope. Here's a rough guide:\n\n• Video Editing — from NPR 5,000\n• Music Production — from NPR 8,000\n• Social Media Mgmt — from NPR 10,000/mo\n• Acting (per day) — negotiable\n\nFor an exact quote, let's connect! 👇",
-      quickReplies: [
-        { label: '📞 Get Quote', key: 'contact' },
-        { label: '🔙 Back', key: 'welcome' }
-      ]
-    },
-    portfolio: {
-      text: "📂 *Portfolio*\n\nCheck out the full portfolio on this website! You can filter by:\n🎬 Acting  ✂️ Editing  🎵 Music\n🎥 Music Video  📷 Modeling  🎨 Design\n\nAlso 301K+ subscribers on YouTube 👇\nyoutube.com/@Lokendra_bayak",
-      quickReplies: [
-        { label: '📞 Contact', key: 'contact' },
-        { label: '🔙 Back', key: 'welcome' }
-      ]
-    },
-    contact: {
-      text: "📞 *Let's Connect!*\n\nYou can reach Lokendra directly:\n\n📧 lokendrabayak85@gmail.com\n📺 @Lokendra_bayak (YouTube)\n\nOr tap the button below to open WhatsApp and chat directly with him. He typically replies within a few minutes! ✅",
-      quickReplies: [
-        { label: '💬 Open WhatsApp', key: 'openwa' },
-        { label: '🔙 Back', key: 'welcome' }
-      ]
-    }
+  const data = {
+    from_name: getVal("cf_name"),
+    from_email: getVal("cf_email"),
+    phone: getVal("cf_phone") || "Not provided",
+    service: getVal("cf_service") || "Not specified",
+    message: getVal("cf_message")
   };
 
-  /* Keyword detection for free-text input */
-  var waKeywords = [
-    { words: ['acting','actor','film','series','commercial','role'], key: 'acting' },
-    { words: ['edit','editing','video','footage','cut','color','grade','premiere','davinci'], key: 'editing' },
-    { words: ['music','song','score','audio','sound','composition','beat','mix'], key: 'music' },
-    { words: ['social','instagram','facebook','tiktok','content','manage','post'], key: 'social' },
-    { words: ['price','pricing','cost','rate','charge','fee','budget','how much','kati'], key: 'pricing' },
-    { words: ['portfolio','work','sample','example','show','project'], key: 'portfolio' },
-    { words: ['contact','call','whatsapp','email','reach','book','hire','connect'], key: 'contact' },
-    { words: ['hi','hello','hey','namaste','namaskar'], key: 'welcome' }
-  ];
+  try {
+    await emailjs.send(
+      CONFIG.EMAILJS_SERVICE_ID,
+      CONFIG.EMAILJS_TEMPLATE_ID,
+      data
+    );
 
-  function getTime() {
-    return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+    alert("Message sent successfully ✅");
+
+    document.getElementById("contactForm")?.reset();
+
+  } catch (err) {
+    console.error("EmailJS Error:", err);
+    alert("Failed to send message ❌");
   }
 
-  function waAddMsg(text, sender, showTicks) {
-    var body  = document.getElementById('waBody');
-    var msg   = document.createElement('div');
-    msg.className = 'wa-msg ' + sender;
-    var lines = text.replace(/\*(.*?)\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
-    var ticks = (sender === 'user' && showTicks !== false)
-      ? '<span class="wa-tick" style="color:#4a9153">✓✓</span>' : '';
-    msg.innerHTML =
-      '<div class="wa-bubble">' + lines + '</div>' +
-      '<div class="wa-time">' + ticks + getTime() + '</div>';
-    body.appendChild(msg);
-    body.scrollTop = body.scrollHeight;
-    return msg;
+  if (btn) {
+    btn.disabled = false;
+    btn.innerText = "Send Message";
   }
+}
 
-  function waShowTyping() {
-    var body  = document.getElementById('waBody');
-    var el    = document.createElement('div');
-    el.className = 'wa-typing';
-    el.id = 'waTyping';
-    el.innerHTML = '<span></span><span></span><span></span>';
-    body.appendChild(el);
-    body.scrollTop = body.scrollHeight;
-  }
 
-  function waRemoveTyping() {
-    var el = document.getElementById('waTyping');
-    if (el) el.remove();
-  }
+/* helper */
+function getVal(id) {
+  return document.getElementById(id)?.value?.trim();
+}
 
-  function waSetQuickReplies(replies) {
-    var qr = document.getElementById('waQuickReplies');
-    qr.innerHTML = '';
-    if (!replies || !replies.length) return;
-    replies.forEach(function(r) {
-      var btn = document.createElement('button');
-      btn.className = 'wa-qr-btn';
-      btn.textContent = r.label;
-      btn.onclick = function() {
-        waHandleQR(r.label, r.key);
-      };
-      qr.appendChild(btn);
-    });
-  }
 
-  function waHandleQR(label, key) {
-    waSetQuickReplies([]);
-    if (key === 'openwa') {
-      window.open('https://wa.me/' + WA_NUMBER + '?text=Hi%20Lokendra!%20I%20visited%20your%20website%20and%20would%20like%20to%20discuss%20a%20project.', '_blank');
-      return;
+/* ════════════════════════════════════════════
+   WHATSAPP AI CHATBOT (CLEAN + SMART)
+════════════════════════════════════════════ */
+
+let WA = {
+  open: false,
+  started: false
+};
+
+const WA_NUMBER = CONFIG.WHATSAPP_NUMBER;
+
+
+/* AI RESPONSES */
+const RESP = {
+  acting: [
+    "🎬 Acting: films, ads, and digital roles.",
+    "🎬 I work in short films and commercial shoots.",
+    "🎬 Acting available for creative projects."
+  ],
+  editing: [
+    "✂️ Editing: reels, cinematic, VFX work.",
+    "✂️ I do professional video editing.",
+    "✂️ Editing for YouTube, reels, ads."
+  ],
+  music: [
+    "🎵 Music production, mixing, beats.",
+    "🎵 I create background scores and songs.",
+    "🎵 Full music production available."
+  ],
+  social: [
+    "📱 Social media growth & content strategy.",
+    "📱 I manage Instagram & YouTube growth.",
+    "📱 Branding and content support available."
+  ],
+  pricing: [
+    "💰 Pricing depends on project details.",
+    "💰 Share your requirements for exact price.",
+    "💰 Cost varies by work type."
+  ],
+  fallback: [
+    "👍 Tell me more so I can help.",
+    "👍 Can you explain a bit more?",
+    "👍 I’m here to help, give details."
+  ]
+};
+
+
+/* INTENT */
+function detectIntent(t) {
+  t = t.toLowerCase();
+
+  if (t.match(/act|film|actor/)) return "acting";
+  if (t.match(/edit|video|cut|vfx/)) return "editing";
+  if (t.match(/music|song|beat/)) return "music";
+  if (t.match(/social|instagram|youtube/)) return "social";
+  if (t.match(/price|cost|budget/)) return "pricing";
+
+  return "fallback";
+}
+
+
+/* MESSAGE SYSTEM */
+function addMsg(text, sender) {
+  const box = document.getElementById("waBody");
+  if (!box) return;
+
+  const el = document.createElement("div");
+  el.className = "wa-msg " + sender;
+
+  el.innerHTML = `
+    <div class="wa-bubble">${escapeHTML(text)}</div>
+    <div class="wa-time">${timeNow()}</div>
+  `;
+
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+
+/* AI RANDOM PICK */
+function random(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+
+/* USER MESSAGE FUNCTION (CHATBOT CORE) */
+function sendUserMessage() {
+  const input = document.getElementById("waInput");
+  if (!input) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = "";
+
+  addMsg(text, "user");
+
+  const intent = detectIntent(text);
+
+  setTimeout(() => {
+    const reply = random(RESP[intent]);
+    addMsg(reply, "bot");
+
+    setTimeout(() => {
+      addMsg("📞 Want to talk directly with Lokendra? Tap WhatsApp button.", "bot");
+    }, 700);
+
+  }, 500);
+}
+
+
+/* OPEN WHATSAPP */
+function openWhatsApp() {
+  window.open(
+    `https://wa.me/${WA_NUMBER}?text=Hi%20Lokendra%20I%20want%20to%20connect`,
+    "_blank"
+  );
+}
+
+
+/* CHAT TOGGLE */
+function toggleChat() {
+  WA.open = !WA.open;
+
+  const win = document.getElementById("waWindow");
+  const openIcon = document.getElementById("waIconOpen");
+  const closeIcon = document.getElementById("waIconClose");
+
+  if (!win) return;
+
+  if (WA.open) {
+    win.classList.add("open");
+
+    openIcon && (openIcon.style.display = "none");
+    closeIcon && (closeIcon.style.display = "block");
+
+    if (!WA.started) {
+      WA.started = true;
+
+      setTimeout(() => {
+        addMsg("👋 Hi, I’m Lokendra’s AI assistant.", "bot");
+        addMsg("Tell me what you need — acting, editing, music or pricing.", "bot");
+      }, 400);
     }
-    waAddMsg(label, 'user');
-    waShowTyping();
-    setTimeout(function() {
-      waRemoveTyping();
-      var flow = waBotFlow[key] || waBotFlow.welcome;
-      waAddMsg(flow.text, 'bot');
-      waSetQuickReplies(flow.quickReplies);
-    }, 900 + Math.random() * 600);
+
+  } else {
+    win.classList.remove("open");
+
+    openIcon && (openIcon.style.display = "block");
+    closeIcon && (closeIcon.style.display = "none");
   }
+}
 
-  function waDetectIntent(text) {
-    var lower = text.toLowerCase();
-    for (var i = 0; i < waKeywords.length; i++) {
-      var k = waKeywords[i];
-      for (var j = 0; j < k.words.length; j++) {
-        if (lower.indexOf(k.words[j]) !== -1) return k.key;
-      }
-    }
-    return null;
-  }
 
-  function waSendUserMsg() {
-    var input = document.getElementById('waInput');
-    var text  = input.value.trim();
-    if (!text) return;
-    input.value = '';
-    waSetQuickReplies([]);
-    waAddMsg(text, 'user');
+/* BACKWARD COMPATIBILITY */
+function toggleWaChat() {
+  toggleChat();
+}
 
-    var intent = waDetectIntent(text);
-    waShowTyping();
-    setTimeout(function() {
-      waRemoveTyping();
-      if (intent) {
-        var flow = waBotFlow[intent];
-        waAddMsg(flow.text, 'bot');
-        waSetQuickReplies(flow.quickReplies);
-      } else {
-        waAddMsg(
-          "Thanks for your message! 😊\n\nI'll pass this to Lokendra right away. For the fastest response, tap *Continue on WhatsApp* below — he's usually online!",
-          'bot'
-        );
-        waSetQuickReplies([
-          { label: '💬 Open WhatsApp', key: 'openwa' },
-          { label: '🔙 Main Menu', key: 'welcome' }
-        ]);
-      }
-    }, 1000 + Math.random() * 800);
-  }
+function waSendUserMsg() {
+  sendUserMessage();
+}
 
-  function waHandleKey(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      waSendUserMsg();
-    }
-  }
 
-  function toggleWaChat() {
-    waOpen = !waOpen;
-    var win  = document.getElementById('waWindow');
-    var icoO = document.getElementById('waIconOpen');
-    var icoC = document.getElementById('waIconClose');
-    var badge = document.getElementById('waBadge');
+/* UTILS */
+function escapeHTML(str) {
+  return str
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br>");
+}
 
-    if (waOpen) {
-      win.classList.add('open');
-      icoO.style.display = 'none';
-      icoC.style.display = 'block';
-      badge.style.display = 'none';
-      if (!waInitialized) {
-        waInitialized = true;
-        /* Show first bot message after short delay */
-        setTimeout(function() {
-          waAddMsg(waBotFlow.welcome.text, 'bot');
-          waSetQuickReplies(waBotFlow.welcome.quickReplies);
-        }, 500);
-      }
-    } else {
-      win.classList.remove('open');
-      icoO.style.display = 'block';
-      icoC.style.display = 'none';
-    }
-  }
+function timeNow() {
+  return new Date().toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
 
-  /* Show badge after 3s to grab attention */
-  setTimeout(function() {
-    var badge = document.getElementById('waBadge');
-    if (badge && !waOpen) badge.style.display = 'flex';
-  }, 3000);
-  </script>
+
+/* badge */
+setTimeout(() => {
+  const b = document.getElementById("waBadge");
+  if (b) b.style.display = "flex";
+}, 2000);
+
+</script>
 
   <script src="script.js"></script>
 </body>
