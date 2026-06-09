@@ -28,7 +28,516 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
   <link rel="stylesheet" href="style.css">
+
+  <style>
+    /* ══════════════════════════════════════════
+       WHATSAPP CHATBOT WIDGET
+    ══════════════════════════════════════════ */
+    #wa-chat-widget {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 99999;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    /* Floating button */
+    .wa-fab {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #25D366;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(37,211,102,0.5);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      position: relative;
+      animation: waPulse 2.8s infinite;
+    }
+    .wa-fab:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 28px rgba(37,211,102,0.7);
+    }
+    @keyframes waPulse {
+      0%,100% { box-shadow: 0 4px 20px rgba(37,211,102,0.5); }
+      50%      { box-shadow: 0 4px 32px rgba(37,211,102,0.8); }
+    }
+
+    /* Notification badge */
+    .wa-badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #e63946;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #0a0a0a;
+      animation: badgePop 0.4s ease 1.5s both;
+    }
+    @keyframes badgePop {
+      from { transform: scale(0); }
+      to   { transform: scale(1); }
+    }
+
+    /* Chat window */
+    .wa-window {
+      position: absolute;
+      bottom: 75px;
+      right: 0;
+      width: 340px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 48px rgba(0,0,0,0.22);
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+      max-height: 540px;
+      animation: waSlidein 0.3s ease;
+    }
+    .wa-window.open {
+      display: flex;
+    }
+    @keyframes waSlidein {
+      from { opacity: 0; transform: translateY(16px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Header */
+    .wa-header {
+      background: #075E54;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .wa-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #25D366;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 2px solid rgba(255,255,255,0.3);
+    }
+    .wa-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+    .wa-header-info { flex: 1; }
+    .wa-header-name {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0;
+      line-height: 1.2;
+    }
+    .wa-header-status {
+      color: rgba(255,255,255,0.75);
+      font-size: 11.5px;
+      margin: 2px 0 0;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .wa-online-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #25D366;
+      display: inline-block;
+      animation: blink 1.8s infinite;
+    }
+    @keyframes blink {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    .wa-close-btn {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.8);
+      cursor: pointer;
+      font-size: 20px;
+      padding: 4px;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+    .wa-close-btn:hover { color: #fff; }
+
+    /* Chat body */
+    .wa-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 12px;
+      background: #ece5dd;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c5bfb9' fill-opacity='0.25'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+      min-height: 260px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      scroll-behavior: smooth;
+    }
+
+    /* Date stamp */
+    .wa-date-stamp {
+      text-align: center;
+      margin: 4px 0 8px;
+    }
+    .wa-date-stamp span {
+      background: rgba(255,255,255,0.75);
+      color: #667781;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    /* Message bubbles */
+    .wa-msg {
+      display: flex;
+      flex-direction: column;
+      max-width: 82%;
+      animation: msgPop 0.25s ease;
+    }
+    @keyframes msgPop {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .wa-msg.bot { align-self: flex-start; }
+    .wa-msg.user { align-self: flex-end; }
+
+    .wa-bubble {
+      padding: 8px 12px 6px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      position: relative;
+      word-break: break-word;
+    }
+    .wa-msg.bot .wa-bubble {
+      background: #fff;
+      color: #111;
+      border-top-left-radius: 2px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .wa-msg.user .wa-bubble {
+      background: #dcf8c6;
+      color: #111;
+      border-top-right-radius: 2px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .wa-time {
+      font-size: 10.5px;
+      color: #999;
+      margin-top: 2px;
+      text-align: right;
+      padding-right: 2px;
+    }
+    .wa-msg.user .wa-time {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 3px;
+      color: #4a9153;
+    }
+    .wa-tick { font-size: 13px; }
+
+    /* Typing indicator */
+    .wa-typing {
+      align-self: flex-start;
+      background: #fff;
+      border-radius: 8px;
+      border-top-left-radius: 2px;
+      padding: 10px 14px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .wa-typing span {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #999;
+      animation: typingDot 1.2s infinite;
+    }
+    .wa-typing span:nth-child(2) { animation-delay: 0.2s; }
+    .wa-typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingDot {
+      0%,80%,100% { transform: scale(1); opacity: 0.5; }
+      40% { transform: scale(1.3); opacity: 1; }
+    }
+
+    /* Quick reply buttons */
+    .wa-quickreplies {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+      padding: 0 2px;
+    }
+    .wa-qr-btn {
+      background: #fff;
+      border: 1.5px solid #25D366;
+      color: #075E54;
+      border-radius: 20px;
+      padding: 5px 13px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      font-family: 'Poppins', sans-serif;
+    }
+    .wa-qr-btn:hover {
+      background: #25D366;
+      color: #fff;
+    }
+
+    /* Footer / input */
+    .wa-footer {
+      background: #f0f0f0;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-top: 1px solid #ddd;
+    }
+    .wa-input {
+      flex: 1;
+      border: none;
+      background: #fff;
+      border-radius: 24px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-family: 'Poppins', sans-serif;
+      outline: none;
+      color: #111;
+      resize: none;
+      max-height: 80px;
+      min-height: 36px;
+      line-height: 1.4;
+    }
+    .wa-send-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #25D366;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .wa-send-btn:hover { background: #1da851; }
+    .wa-send-btn svg { width: 18px; height: 18px; }
+
+    /* Open in WhatsApp button */
+    .wa-open-real {
+      display: block;
+      background: #25D366;
+      color: #fff;
+      text-align: center;
+      padding: 10px;
+      font-size: 12.5px;
+      font-weight: 600;
+      text-decoration: none;
+      letter-spacing: 0.3px;
+      transition: background 0.2s;
+    }
+    .wa-open-real:hover { background: #1da851; }
+
+    @media (max-width: 400px) {
+      .wa-window { width: 300px; }
+    }
+
+
+    /* ══════════════════════════════════════════
+       WHATSAPP FLOATING ICON (fallback tooltip style)
+    ══════════════════════════════════════════ */
+    .wa-float-tooltip {
+      position: absolute;
+      right: 68px;
+      background: #111;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      padding: 6px 12px;
+      border-radius: 8px;
+      opacity: 0;
+      transform: translateX(8px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+      font-family: 'Poppins', sans-serif;
+      letter-spacing: 0.3px;
+    }
+    .wa-float-tooltip::after {
+      content: '';
+      position: absolute;
+      right: -6px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 6px solid transparent;
+      border-left-color: #111;
+      border-right: none;
+    }
+
+    /* ══════════════════════════════════════════
+       SHORTS SECTION
+    ══════════════════════════════════════════ */
+    .shorts-section { background: #0d0d0d; }
+    .shorts-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-top: 44px;
+    }
+    @media (max-width: 900px) { .shorts-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; } }
+    @media (max-width: 480px) { .shorts-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; } }
+    .short-card {
+      background: #161616;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #242424;
+      transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .short-card:hover {
+      transform: translateY(-6px);
+      border-color: #e63946;
+      box-shadow: 0 16px 48px rgba(230,57,70,0.18);
+    }
+    .short-iframe-wrap {
+      position: relative;
+      width: 100%;
+      padding-bottom: 177.78%;
+      background: #000;
+      flex-shrink: 0;
+    }
+    .short-iframe-wrap iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    .short-info {
+      padding: 12px 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+    .short-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(230,57,70,0.12);
+      color: #e63946;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+      width: fit-content;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .short-info h4 {
+      font-size: 13px;
+      color: #ddd;
+      font-weight: 600;
+      margin: 0;
+      line-height: 1.45;
+    }
+    @media (max-width: 480px) {
+      .short-info { padding: 10px 11px 12px; }
+      .short-info h4 { font-size: 11px; }
+      .short-badge { font-size: 9px; padding: 2px 7px; }
+    }
+
+    /* ══════════════════════════════════════════
+       CONTACT FORM STATES
+    ══════════════════════════════════════════ */
+    .form-sending-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(10,10,10,0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 16px;
+      z-index: 10;
+      gap: 16px;
+    }
+    .form-spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(230,57,70,0.2);
+      border-top-color: #e63946;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .form-sending-overlay p {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .contact-form { position: relative; }
+
+    #formSuccess {
+      background: rgba(37,211,102,0.12);
+      border: 1px solid rgba(37,211,102,0.35);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-top: 12px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: #25D366;
+      display: none;
+    }
+    #formError {
+      background: rgba(230,57,70,0.1);
+      border: 1px solid rgba(230,57,70,0.3);
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-top: 12px;
+      text-align: center;
+      font-size: 13px;
+      color: #e63946;
+      display: none;
+    }
+  </style>
 </head>
 <body>
 
@@ -387,9 +896,7 @@
     </div>
   </section>
 
-  <!-- ═══════════════════════════════════════════
-       YOUTUBE SHORTS — IMPROVED RESPONSIVE LAYOUT
-  ═══════════════════════════════════════════ -->
+  <!-- SHORTS -->
   <section class="shorts-section section-pad" id="shorts">
     <div class="container">
       <div class="section-label">YouTube Shorts</div>
@@ -398,77 +905,37 @@
       <div class="shorts-grid">
         <div class="short-card fade-in">
           <div class="short-iframe-wrap">
-            <iframe
-              src="https://www.youtube.com/embed/videoseries?list=PLbpi6ZahtOH6Ar_3GPy3workTMRvg_mFc&index=0"
-              title="Lokendra Bayak YouTube Short 1"
-              frameborder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy">
-            </iframe>
+            <iframe src="https://www.youtube.com/embed/videoseries?list=PLbpi6ZahtOH6Ar_3GPy3workTMRvg_mFc&index=0" title="Lokendra Bayak YouTube Short 1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
           </div>
           <div class="short-info">
-            <span class="short-badge">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.3-1C17.6 2.7 12 2.7 12 2.7s-5.6 0-8.3.2c-.4 0-1.4.1-2.3 1C.7 4.6.5 6.2.5 6.2S.3 8.1.3 10v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .8 2.6.9C5.8 19 12 19 12 19s5.6 0 8.3-.2c.4 0 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.7 14.5V8.8l6.3 2.9-6.3 2.8z"/></svg>
-              Shorts
-            </span>
+            <span class="short-badge"><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.3-1C17.6 2.7 12 2.7 12 2.7s-5.6 0-8.3.2c-.4 0-1.4.1-2.3 1C.7 4.6.5 6.2.5 6.2S.3 8.1.3 10v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .8 2.6.9C5.8 19 12 19 12 19s5.6 0 8.3-.2c.4 0 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.7 14.5V8.8l6.3 2.9-6.3 2.8z"/></svg> Shorts</span>
             <h4>Latest Short</h4>
           </div>
         </div>
         <div class="short-card fade-in">
           <div class="short-iframe-wrap">
-            <iframe
-              src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1"
-              title="Lokendra Bayak YouTube Short 2"
-              frameborder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy">
-            </iframe>
+            <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1" title="Lokendra Bayak YouTube Short 2" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
           </div>
           <div class="short-info">
-            <span class="short-badge">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.3-1C17.6 2.7 12 2.7 12 2.7s-5.6 0-8.3.2c-.4 0-1.4.1-2.3 1C.7 4.6.5 6.2.5 6.2S.3 8.1.3 10v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .8 2.6.9C5.8 19 12 19 12 19s5.6 0 8.3-.2c.4 0 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.7 14.5V8.8l6.3 2.9-6.3 2.8z"/></svg>
-              Shorts
-            </span>
+            <span class="short-badge"><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.3-1C17.6 2.7 12 2.7 12 2.7s-5.6 0-8.3.2c-.4 0-1.4.1-2.3 1C.7 4.6.5 6.2.5 6.2S.3 8.1.3 10v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .8 2.6.9C5.8 19 12 19 12 19s5.6 0 8.3-.2c.4 0 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.7 14.5V8.8l6.3 2.9-6.3 2.8z"/></svg> Shorts</span>
             <h4>Behind The Scenes</h4>
           </div>
         </div>
         <div class="short-card fade-in">
           <div class="short-iframe-wrap">
-            <iframe
-              src="https://youtube.com/shorts/f1eCP7odG8M?si=W8ePiWXC19I6FCOw"
-              title="Lokendra Bayak YouTube Short 3"
-              frameborder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy">
-            </iframe>
+            <iframe src="https://youtube.com/shorts/f1eCP7odG8M?si=W8ePiWXC19I6FCOw" title="Lokendra Bayak YouTube Short 3" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
           </div>
           <div class="short-info">
-            <span class="short-badge">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.3-1C17.6 2.7 12 2.7 12 2.7s-5.6 0-8.3.2c-.4 0-1.4.1-2.3 1C.7 4.6.5 6.2.5 6.2S.3 8.1.3 10v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .8 2.6.9C5.8 19 12 19 12 19s5.6 0 8.3-.2c.4 0 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.7 14.5V8.8l6.3 2.9-6.3 2.8z"/></svg>
-              Shorts
-            </span>
+            <span class="short-badge"><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.3-1C17.6 2.7 12 2.7 12 2.7s-5.6 0-8.3.2c-.4 0-1.4.1-2.3 1C.7 4.6.5 6.2.5 6.2S.3 8.1.3 10v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .8 2.6.9C5.8 19 12 19 12 19s5.6 0 8.3-.2c.4 0 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.7 14.5V8.8l6.3 2.9-6.3 2.8z"/></svg> Shorts</span>
             <h4>Creative Moments</h4>
           </div>
         </div>
         <div class="short-card fade-in">
           <div class="short-iframe-wrap">
-            <iframe
-              src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&start=25"
-              title="Lokendra Bayak YouTube Short 4"
-              frameborder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy">
-            </iframe>
+            <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&start=25" title="Lokendra Bayak YouTube Short 4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
           </div>
           <div class="short-info">
-            <span class="short-badge">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.3-1C17.6 2.7 12 2.7 12 2.7s-5.6 0-8.3.2c-.4 0-1.4.1-2.3 1C.7 4.6.5 6.2.5 6.2S.3 8.1.3 10v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .8 2.6.9C5.8 19 12 19 12 19s5.6 0 8.3-.2c.4 0 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.7 14.5V8.8l6.3 2.9-6.3 2.8z"/></svg>
-              Shorts
-            </span>
+            <span class="short-badge"><svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.3-1C17.6 2.7 12 2.7 12 2.7s-5.6 0-8.3.2c-.4 0-1.4.1-2.3 1C.7 4.6.5 6.2.5 6.2S.3 8.1.3 10v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .8 2.6.9C5.8 19 12 19 12 19s5.6 0 8.3-.2c.4 0 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.7 14.5V8.8l6.3 2.9-6.3 2.8z"/></svg> Shorts</span>
             <h4>Music Clips</h4>
           </div>
         </div>
@@ -553,38 +1020,33 @@
             <div><strong>YouTube</strong><span>@Lokendra_bayak</span></div>
           </div>
           <div class="contact-social">
-            <a href="https://www.youtube.com/@Lokendra_bayak" target="_blank" class="cs-icon yt" aria-label="YouTube">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.3-1C17.6 2.7 12 2.7 12 2.7s-5.6 0-8.3.2c-.4 0-1.4.1-2.3 1C.7 4.6.5 6.2.5 6.2S.3 8.1.3 10v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .8 2.6.9C5.8 19 12 19 12 19s5.6 0 8.3-.2c.4 0 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.7 14.5V8.8l6.3 2.9-6.3 2.8z"/></svg>
-            </a>
-            <a href="https://www.instagram.com/lokendra_bayak_?igsh=MXBuYWplMHJjeHVhYg%3D%3D&utm_source=qr" target="_blank" class="cs-icon ig" aria-label="Instagram">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 2.2c3.2 0 3.6 0 4.9.1 3.3.1 4.8 1.7 4.9 4.9.1 1.3.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 3.2-1.7 4.8-4.9 4.9-1.3.1-1.6.1-4.9.1s-3.6 0-4.8-.1c-3.3-.1-4.8-1.7-4.9-4.9C2.2 15.6 2.2 15.3 2.2 12s0-3.6.1-4.8C2.4 3.9 4 2.3 7.2 2.3c1.2-.1 1.6-.1 4.8-.1zm0-2.2C8.7 0 8.3 0 7.1.1 2.7.3.3 2.7.1 7.1.1 8.3 0 8.7 0 12s0 3.7.1 4.9C.3 21.3 2.7 23.7 7.1 23.9c1.2.1 1.6.1 4.9.1s3.7 0 4.9-.1c4.4-.2 6.8-2.6 7-7 .1-1.2.1-1.6.1-4.9s0-3.7-.1-4.9C23.7 2.7 21.3.3 16.9.1 15.7 0 15.3 0 12 0zm0 5.8a6.2 6.2 0 100 12.4 6.2 6.2 0 000-12.4zm0 10.2a4 4 0 110-8 4 4 0 010 8zm6.4-11.8a1.4 1.4 0 100 2.8 1.4 1.4 0 000-2.8z"/></svg>
-            </a>
-            <a href="https://www.facebook.com/lokendrabayakofficial/" target="_blank" class="cs-icon fb" aria-label="Facebook">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M24 12.1C24 5.4 18.6 0 12 0S0 5.4 0 12.1c0 6 4.4 11 10.1 11.9v-8.4H7.1v-3.5h3V9.4c0-3 1.8-4.6 4.5-4.6 1.3 0 2.7.2 2.7.2v2.9h-1.5c-1.5 0-1.9.9-1.9 1.9v2.2h3.3l-.5 3.5h-2.8V24C19.6 23.1 24 18.1 24 12.1z"/></svg>
-            </a>
-            <a href="https://www.tiktok.com/@lokendrabayak1?_r=1&_t=ZS-96qEvhsTNDj" target="_blank" class="cs-icon tt" aria-label="TikTok">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19.6 3.3A4.8 4.8 0 0114.8 0h-3.4v16.4a2.9 2.9 0 01-2.9 2.5 2.9 2.9 0 01-2.9-2.9 2.9 2.9 0 012.9-2.9c.3 0 .5 0 .8.1V9.6a6.3 6.3 0 00-.8-.1 6.3 6.3 0 00-6.3 6.3 6.3 6.3 0 006.3 6.3 6.3 6.3 0 006.3-6.3V7.8a8.1 8.1 0 004.8 1.5V5.9a4.8 4.8 0 01-3-2.6z"/></svg>
-            </a>
-            <a href="https://www.linkedin.com/in/lokendra-bayak-0068a1254" target="_blank" class="cs-icon li" aria-label="LinkedIn">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M20.4 20.4h-3.4v-5.3c0-1.3 0-2.9-1.8-2.9s-2 1.4-2 2.8v5.4H9.8V9h3.2v1.5h.1c.5-.9 1.6-1.8 3.2-1.8 3.4 0 4.1 2.2 4.1 5.2v6.5zM5.3 7.4a2 2 0 110-4 2 2 0 010 4zm1.7 13H3.6V9h3.4v11.4zM22.2 0H1.8C.8 0 0 .8 0 1.7v20.6C0 23.2.8 24 1.8 24h20.4c1 0 1.8-.8 1.8-1.8V1.7C24 .8 23.2 0 22.2 0z"/></svg>
-            </a>
+            <a href="https://www.youtube.com/@Lokendra_bayak" target="_blank" class="cs-icon yt" aria-label="YouTube"><svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.3-1C17.6 2.7 12 2.7 12 2.7s-5.6 0-8.3.2c-.4 0-1.4.1-2.3 1C.7 4.6.5 6.2.5 6.2S.3 8.1.3 10v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .8 2.6.9C5.8 19 12 19 12 19s5.6 0 8.3-.2c.4 0 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.7 14.5V8.8l6.3 2.9-6.3 2.8z"/></svg></a>
+            <a href="https://www.instagram.com/lokendra_bayak_?igsh=MXBuYWplMHJjeHVhYg%3D%3D&utm_source=qr" target="_blank" class="cs-icon ig" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 2.2c3.2 0 3.6 0 4.9.1 3.3.1 4.8 1.7 4.9 4.9.1 1.3.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 3.2-1.7 4.8-4.9 4.9-1.3.1-1.6.1-4.9.1s-3.6 0-4.8-.1c-3.3-.1-4.8-1.7-4.9-4.9C2.2 15.6 2.2 15.3 2.2 12s0-3.6.1-4.8C2.4 3.9 4 2.3 7.2 2.3c1.2-.1 1.6-.1 4.8-.1zm0-2.2C8.7 0 8.3 0 7.1.1 2.7.3.3 2.7.1 7.1.1 8.3 0 8.7 0 12s0 3.7.1 4.9C.3 21.3 2.7 23.7 7.1 23.9c1.2.1 1.6.1 4.9.1s3.7 0 4.9-.1c4.4-.2 6.8-2.6 7-7 .1-1.2.1-1.6.1-4.9s0-3.7-.1-4.9C23.7 2.7 21.3.3 16.9.1 15.7 0 15.3 0 12 0zm0 5.8a6.2 6.2 0 100 12.4 6.2 6.2 0 000-12.4zm0 10.2a4 4 0 110-8 4 4 0 010 8zm6.4-11.8a1.4 1.4 0 100 2.8 1.4 1.4 0 000-2.8z"/></svg></a>
+            <a href="https://www.facebook.com/lokendrabayakofficial/" target="_blank" class="cs-icon fb" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M24 12.1C24 5.4 18.6 0 12 0S0 5.4 0 12.1c0 6 4.4 11 10.1 11.9v-8.4H7.1v-3.5h3V9.4c0-3 1.8-4.6 4.5-4.6 1.3 0 2.7.2 2.7.2v2.9h-1.5c-1.5 0-1.9.9-1.9 1.9v2.2h3.3l-.5 3.5h-2.8V24C19.6 23.1 24 18.1 24 12.1z"/></svg></a>
+            <a href="https://www.tiktok.com/@lokendrabayak1?_r=1&_t=ZS-96qEvhsTNDj" target="_blank" class="cs-icon tt" aria-label="TikTok"><svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M19.6 3.3A4.8 4.8 0 0114.8 0h-3.4v16.4a2.9 2.9 0 01-2.9 2.5 2.9 2.9 0 01-2.9-2.9 2.9 2.9 0 012.9-2.9c.3 0 .5 0 .8.1V9.6a6.3 6.3 0 00-.8-.1 6.3 6.3 0 00-6.3 6.3 6.3 6.3 0 006.3 6.3 6.3 6.3 0 006.3-6.3V7.8a8.1 8.1 0 004.8 1.5V5.9a4.8 4.8 0 01-3-2.6z"/></svg></a>
+            <a href="https://www.linkedin.com/in/lokendra-bayak-0068a1254" target="_blank" class="cs-icon li" aria-label="LinkedIn"><svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M20.4 20.4h-3.4v-5.3c0-1.3 0-2.9-1.8-2.9s-2 1.4-2 2.8v5.4H9.8V9h3.2v1.5h.1c.5-.9 1.6-1.8 3.2-1.8 3.4 0 4.1 2.2 4.1 5.2v6.5zM5.3 7.4a2 2 0 110-4 2 2 0 010 4zm1.7 13H3.6V9h3.4v11.4zM22.2 0H1.8C.8 0 0 .8 0 1.7v20.6C0 23.2.8 24 1.8 24h20.4c1 0 1.8-.8 1.8-1.8V1.7C24 .8 23.2 0 22.2 0z"/></svg></a>
           </div>
         </div>
 
-        <form class="contact-form fade-in" id="contactForm" onsubmit="sendToWhatsApp(event)">
+        <!-- CONTACT FORM — sends email via EmailJS -->
+        <form class="contact-form fade-in" id="contactForm" onsubmit="sendEmail(event)">
           <div class="form-row">
             <div class="form-group">
               <label>Your Name</label>
-              <input type="text" id="wa_name" placeholder="Lokendra Bayak" required/>
+              <input type="text" id="cf_name" placeholder="Your full name" required/>
             </div>
             <div class="form-group">
-              <label>Phone / Email</label>
-              <input type="text" id="wa_contact" placeholder="+977 98XXXXXXXX or abc@email.com" required/>
+              <label>Your Email</label>
+              <input type="email" id="cf_email" placeholder="your@email.com" required/>
             </div>
           </div>
           <div class="form-group">
+            <label>Phone Number</label>
+            <input type="text" id="cf_phone" placeholder="+977 98XXXXXXXX"/>
+          </div>
+          <div class="form-group">
             <label>Service Needed</label>
-            <select id="wa_service">
+            <select id="cf_service">
               <option value="">Select a service...</option>
               <option>Video Editing</option>
               <option>Music Production</option>
@@ -596,33 +1058,77 @@
           </div>
           <div class="form-group">
             <label>Your Message</label>
-            <textarea id="wa_message" placeholder="Tell me about your project..." rows="4" required></textarea>
+            <textarea id="cf_message" placeholder="Tell me about your project..." rows="4" required></textarea>
           </div>
           <button type="submit" class="btn-primary full-w" style="display:flex;align-items:center;justify-content:center;gap:10px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             Send Message
           </button>
-          <p id="formSuccess" style="display:none;text-align:center;font-size:13px;color:#25D366;margin-top:10px;font-weight:600;"></p>
+          <div id="formSuccess">✅ Message sent successfully! I'll get back to you within 24 hours.</div>
+          <div id="formError">❌ Something went wrong. Please try again or contact via WhatsApp.</div>
         </form>
       </div>
     </div>
   </section>
 
-  <!-- ═══════════════════════════════════════════
-       WHATSAPP FLOATING ICON — fixed bottom-right,
-       no popup, direct link to WhatsApp chat
-  ═══════════════════════════════════════════ -->
-  <a
-    class="wa-float-btn"
-    href="https://wa.me/9779843899427?text=Hi%20Lokendra!%20I%20came%20from%20your%20website%20and%20would%20like%20to%20know%20more."
-    target="_blank"
-    rel="noopener noreferrer"
-    aria-label="Chat on WhatsApp"
-  >
-    <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-    </svg>
-    <span class="wa-float-tooltip">Chat on WhatsApp</span>
-  </a>
+  <!-- ══════════════════════════════════════════
+       WHATSAPP CHATBOT WIDGET
+  ══════════════════════════════════════════ -->
+  <div id="wa-chat-widget">
+    <!-- Floating action button -->
+    <button class="wa-fab" id="waFab" onclick="toggleWaChat()" aria-label="Open WhatsApp Chat">
+      <div class="wa-badge" id="waBadge">1</div>
+      <!-- WhatsApp icon (shown when closed) -->
+      <svg id="waIconOpen" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+      </svg>
+      <!-- Close icon (shown when open) -->
+      <svg id="waIconClose" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="24" height="24" style="display:none;">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+
+    <!-- Chat window -->
+    <div class="wa-window" id="waWindow">
+      <!-- Header -->
+      <div class="wa-header">
+        <div class="wa-avatar">
+          <img src="img/1.png" alt="Lokendra Bayak" onerror="this.style.display='none';this.parentElement.innerHTML='LB'">
+        </div>
+        <div class="wa-header-info">
+          <p class="wa-header-name">Lokendra Bayak</p>
+          <p class="wa-header-status">
+            <span class="wa-online-dot"></span>
+            Typically replies within minutes
+          </p>
+        </div>
+        <button class="wa-close-btn" onclick="toggleWaChat()" aria-label="Close chat">✕</button>
+      </div>
+
+      <!-- Chat body -->
+      <div class="wa-body" id="waBody">
+        <div class="wa-date-stamp"><span>Today</span></div>
+        <!-- Initial bot message will be injected by JS -->
+      </div>
+
+      <!-- Quick replies row -->
+      <div style="background:#ece5dd;padding:0 12px 10px;display:flex;flex-wrap:wrap;gap:6px;" id="waQuickReplies"></div>
+
+      <!-- Input footer -->
+      <div class="wa-footer">
+        <textarea class="wa-input" id="waInput" placeholder="Type a message..." rows="1" onkeydown="waHandleKey(event)"></textarea>
+        <button class="wa-send-btn" onclick="waSendUserMsg()" aria-label="Send">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+
+      <!-- Open in real WhatsApp -->
+      <a class="wa-open-real" href="https://wa.me/9779843899427?text=Hi%20Lokendra!%20I%20came%20from%20your%20website%20and%20would%20like%20to%20know%20more." target="_blank" rel="noopener noreferrer">
+        💬 Continue on WhatsApp →
+      </a>
+    </div>
+  </div>
 
   <!-- FOOTER -->
   <footer class="footer">
@@ -666,186 +1172,321 @@
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════
-       STYLES: WhatsApp icon + Improved Shorts
-  ═══════════════════════════════════════════ -->
-  <style>
-    /* ── WhatsApp Floating Icon (clean, no popup) ── */
-    .wa-float-btn {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      z-index: 9999;
-      width: 58px;
-      height: 58px;
-      border-radius: 50%;
-      background: #25D366;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 20px rgba(37,211,102,0.45);
-      text-decoration: none;
-      transition: transform 0.25s ease, box-shadow 0.25s ease;
-      animation: waPulse 2.8s infinite;
-    }
-    .wa-float-btn:hover {
-      transform: scale(1.12);
-      box-shadow: 0 8px 32px rgba(37,211,102,0.65);
-    }
-    .wa-float-btn:hover .wa-float-tooltip {
-      opacity: 1;
-      transform: translateX(0);
-      pointer-events: auto;
-    }
-    @keyframes waPulse {
-      0%,100% { box-shadow: 0 4px 20px rgba(37,211,102,0.45); }
-      50%      { box-shadow: 0 4px 30px rgba(37,211,102,0.75); }
-    }
-    .wa-float-tooltip {
-      position: absolute;
-      right: 68px;
-      background: #111;
-      color: #fff;
-      font-size: 12px;
-      font-weight: 500;
-      white-space: nowrap;
-      padding: 6px 12px;
-      border-radius: 8px;
-      opacity: 0;
-      transform: translateX(8px);
-      transition: opacity 0.2s ease, transform 0.2s ease;
-      pointer-events: none;
-      font-family: 'Poppins', sans-serif;
-      letter-spacing: 0.3px;
-    }
-    .wa-float-tooltip::after {
-      content: '';
-      position: absolute;
-      right: -6px;
-      top: 50%;
-      transform: translateY(-50%);
-      border: 6px solid transparent;
-      border-left-color: #111;
-      border-right: none;
-    }
-
-    /* ── YouTube Shorts Section ──────────────────── */
-    .shorts-section {
-      background: #0d0d0d;
-    }
-
-    /* Responsive grid: 4 cols → 2 cols → 2 cols on small mobile */
-    .shorts-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 24px;
-      margin-top: 44px;
-    }
-    @media (max-width: 1200px) {
-      .shorts-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
-    }
-    @media (max-width: 900px) {
-      .shorts-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
-    }
-    @media (max-width: 480px) {
-      .shorts-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-    }
-
-    .short-card {
-      background: #161616;
-      border-radius: 16px;
-      overflow: hidden;
-      border: 1px solid #242424;
-      transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-      display: flex;
-      flex-direction: column;
-    }
-    .short-card:hover {
-      transform: translateY(-6px);
-      border-color: #e63946;
-      box-shadow: 0 16px 48px rgba(230,57,70,0.18);
-    }
-
-    /* 9:16 aspect ratio wrapper for vertical shorts */
-    .short-iframe-wrap {
-      position: relative;
-      width: 100%;
-      padding-bottom: 177.78%; /* 9:16 vertical */
-      background: #000;
-      flex-shrink: 0;
-    }
-    .short-iframe-wrap iframe {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      border: none;
-      display: block;
-    }
-
-    .short-info {
-      padding: 12px 14px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      flex: 1;
-    }
-    .short-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      background: rgba(230,57,70,0.12);
-      color: #e63946;
-      font-size: 10px;
-      font-weight: 600;
-      padding: 3px 9px;
-      border-radius: 20px;
-      width: fit-content;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-    .short-info h4 {
-      font-size: 13px;
-      color: #ddd;
-      font-weight: 600;
-      margin: 0;
-      line-height: 1.45;
-    }
-    @media (max-width: 480px) {
-      .short-info { padding: 10px 11px 12px; }
-      .short-info h4 { font-size: 11px; }
-      .short-badge { font-size: 9px; padding: 2px 7px; }
-    }
-  </style>
-
-  <!-- ═══════════════════════════════════════════
-       CONTACT FORM → WHATSAPP
-  ═══════════════════════════════════════════ -->
+  <!-- ══════════════════════════════════════════
+       SCRIPTS
+  ══════════════════════════════════════════ -->
   <script>
-    var WA_NUMBER = '9779843899427';
+  /* ════════════════════════════════════════════
+     1. EMAILJS — Contact Form → Gmail
+     ════════════════════════════════════════════
+     SETUP STEPS (one-time, takes 5 minutes):
+     ① Go to https://www.emailjs.com and create a FREE account
+     ② Add a new Email Service → choose Gmail → connect lokendrabayak85@gmail.com
+        Copy the Service ID (e.g. "service_abc123") → replace YOUR_SERVICE_ID below
+     ③ Create an Email Template → use these variables in the template:
+        {{from_name}}, {{from_email}}, {{phone}}, {{service}}, {{message}}
+        Set "To Email" = lokendrabayak85@gmail.com
+        Copy the Template ID (e.g. "template_xyz789") → replace YOUR_TEMPLATE_ID below
+     ④ Go to Account → API Keys → copy your Public Key → replace YOUR_PUBLIC_KEY below
+  */
+  var EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';   // ← replace
+  var EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';  // ← replace
+  var EMAILJS_PUBLIC_KEY  = 'YOUR_PUBLIC_KEY';   // ← replace
 
-    function sendToWhatsApp(e) {
-      e.preventDefault();
-      var name    = document.getElementById('wa_name').value.trim();
-      var contact = document.getElementById('wa_contact').value.trim();
-      var service = document.getElementById('wa_service').value || 'Not specified';
-      var message = document.getElementById('wa_message').value.trim();
-      var text =
-        '👋 *New Inquiry from lokendrabayak.com.np*\n\n' +
+  // Initialize EmailJS
+  (function(){
+    if (typeof emailjs !== 'undefined') {
+      emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+    }
+  })();
+
+  function sendEmail(e) {
+    e.preventDefault();
+    var name    = document.getElementById('cf_name').value.trim();
+    var email   = document.getElementById('cf_email').value.trim();
+    var phone   = document.getElementById('cf_phone').value.trim() || 'Not provided';
+    var service = document.getElementById('cf_service').value || 'Not specified';
+    var message = document.getElementById('cf_message').value.trim();
+
+    var btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    var params = {
+      from_name : name,
+      from_email: email,
+      phone     : phone,
+      service   : service,
+      message   : message,
+      reply_to  : email
+    };
+
+    if (typeof emailjs !== 'undefined' && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY') {
+      emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params)
+        .then(function() {
+          document.getElementById('formSuccess').style.display = 'block';
+          document.getElementById('formError').style.display   = 'none';
+          document.getElementById('contactForm').reset();
+        })
+        .catch(function() {
+          document.getElementById('formError').style.display   = 'block';
+          document.getElementById('formSuccess').style.display = 'none';
+        })
+        .finally(function() {
+          btn.disabled = false;
+          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg> Send Message';
+        });
+    } else {
+      /* Fallback: open WhatsApp with form data if EmailJS not yet configured */
+      var waText =
+        '📬 *New Message from Portfolio*\n\n' +
         '👤 *Name:* '    + name    + '\n' +
-        '📞 *Contact:* ' + contact + '\n' +
+        '📧 *Email:* '   + email   + '\n' +
+        '📞 *Phone:* '   + phone   + '\n' +
         '🛠️ *Service:* ' + service + '\n\n' +
         '💬 *Message:*\n' + message;
-      window.open('https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(text), '_blank');
-      var s = document.getElementById('formSuccess');
-      s.textContent = '✓ WhatsApp opened! Just tap Send in the app.';
-      s.style.display = 'block';
+      window.open('https://wa.me/9779843899427?text=' + encodeURIComponent(waText), '_blank');
+      document.getElementById('formSuccess').style.display = 'block';
+      document.getElementById('formSuccess').textContent = '✅ Opening WhatsApp... (Set up EmailJS to receive emails directly to your Gmail)';
       document.getElementById('contactForm').reset();
+      btn.disabled = false;
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg> Send Message';
     }
+  }
+
+
+  /* ════════════════════════════════════════════
+     2. WHATSAPP CHATBOT — Auto-reply engine
+     ════════════════════════════════════════════ */
+  var WA_NUMBER = '9779843899427';
+  var waOpen = false;
+  var waInitialized = false;
+
+  /* ── Bot conversation flow ── */
+  var waBotFlow = {
+    welcome: {
+      text: "👋 Hi there! I'm Lokendra's virtual assistant.\n\nHow can I help you today?",
+      quickReplies: [
+        { label: '🎬 Acting', key: 'acting' },
+        { label: '✂️ Video Editing', key: 'editing' },
+        { label: '🎵 Music', key: 'music' },
+        { label: '📱 Social Media', key: 'social' },
+        { label: '💰 Pricing', key: 'pricing' },
+        { label: '📞 Contact', key: 'contact' }
+      ]
+    },
+    acting: {
+      text: "🎬 *Acting Services*\n\nLokendra is available for:\n• Short films & web series\n• Brand commercials & ads\n• Digital campaigns\n• Corporate videos\n\nHe has 5+ years of experience and 10M+ views on his content.",
+      quickReplies: [
+        { label: '💰 Rates', key: 'pricing' },
+        { label: '📂 Portfolio', key: 'portfolio' },
+        { label: '📞 Book Now', key: 'contact' }
+      ]
+    },
+    editing: {
+      text: "✂️ *Video Editing Services*\n\nSpecializing in:\n• Cinematic color grading\n• Motion graphics & VFX\n• YouTube & social content\n• Brand reels & commercials\n\nTools: Premiere Pro, After Effects, DaVinci Resolve",
+      quickReplies: [
+        { label: '💰 Rates', key: 'pricing' },
+        { label: '🎥 See Work', key: 'portfolio' },
+        { label: '📞 Get Quote', key: 'contact' }
+      ]
+    },
+    music: {
+      text: "🎵 *Music Production*\n\nServices include:\n• Original compositions\n• Background scores\n• Full music production\n• Sound design & mixing\n• Music video direction\n\nBlending traditional Nepali and modern sounds.",
+      quickReplies: [
+        { label: '💰 Rates', key: 'pricing' },
+        { label: '📂 Listen', key: 'portfolio' },
+        { label: '📞 Discuss Project', key: 'contact' }
+      ]
+    },
+    social: {
+      text: "📱 *Social Media Management*\n\nWhat's included:\n• Content strategy & planning\n• Post creation & scheduling\n• Community management\n• Analytics & reporting\n• Brand growth campaigns\n\nPrevious result: 2K → 35K followers in 3 months! 🚀",
+      quickReplies: [
+        { label: '💰 Packages', key: 'pricing' },
+        { label: '📞 Start Today', key: 'contact' }
+      ]
+    },
+    pricing: {
+      text: "💰 *Pricing*\n\nPricing depends on project scope. Here's a rough guide:\n\n• Video Editing — from NPR 5,000\n• Music Production — from NPR 8,000\n• Social Media Mgmt — from NPR 10,000/mo\n• Acting (per day) — negotiable\n\nFor an exact quote, let's connect! 👇",
+      quickReplies: [
+        { label: '📞 Get Quote', key: 'contact' },
+        { label: '🔙 Back', key: 'welcome' }
+      ]
+    },
+    portfolio: {
+      text: "📂 *Portfolio*\n\nCheck out the full portfolio on this website! You can filter by:\n🎬 Acting  ✂️ Editing  🎵 Music\n🎥 Music Video  📷 Modeling  🎨 Design\n\nAlso 301K+ subscribers on YouTube 👇\nyoutube.com/@Lokendra_bayak",
+      quickReplies: [
+        { label: '📞 Contact', key: 'contact' },
+        { label: '🔙 Back', key: 'welcome' }
+      ]
+    },
+    contact: {
+      text: "📞 *Let's Connect!*\n\nYou can reach Lokendra directly:\n\n📧 lokendrabayak85@gmail.com\n📺 @Lokendra_bayak (YouTube)\n\nOr tap the button below to open WhatsApp and chat directly with him. He typically replies within a few minutes! ✅",
+      quickReplies: [
+        { label: '💬 Open WhatsApp', key: 'openwa' },
+        { label: '🔙 Back', key: 'welcome' }
+      ]
+    }
+  };
+
+  /* Keyword detection for free-text input */
+  var waKeywords = [
+    { words: ['acting','actor','film','series','commercial','role'], key: 'acting' },
+    { words: ['edit','editing','video','footage','cut','color','grade','premiere','davinci'], key: 'editing' },
+    { words: ['music','song','score','audio','sound','composition','beat','mix'], key: 'music' },
+    { words: ['social','instagram','facebook','tiktok','content','manage','post'], key: 'social' },
+    { words: ['price','pricing','cost','rate','charge','fee','budget','how much','kati'], key: 'pricing' },
+    { words: ['portfolio','work','sample','example','show','project'], key: 'portfolio' },
+    { words: ['contact','call','whatsapp','email','reach','book','hire','connect'], key: 'contact' },
+    { words: ['hi','hello','hey','namaste','namaskar'], key: 'welcome' }
+  ];
+
+  function getTime() {
+    return new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+  }
+
+  function waAddMsg(text, sender, showTicks) {
+    var body  = document.getElementById('waBody');
+    var msg   = document.createElement('div');
+    msg.className = 'wa-msg ' + sender;
+    var lines = text.replace(/\*(.*?)\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+    var ticks = (sender === 'user' && showTicks !== false)
+      ? '<span class="wa-tick" style="color:#4a9153">✓✓</span>' : '';
+    msg.innerHTML =
+      '<div class="wa-bubble">' + lines + '</div>' +
+      '<div class="wa-time">' + ticks + getTime() + '</div>';
+    body.appendChild(msg);
+    body.scrollTop = body.scrollHeight;
+    return msg;
+  }
+
+  function waShowTyping() {
+    var body  = document.getElementById('waBody');
+    var el    = document.createElement('div');
+    el.className = 'wa-typing';
+    el.id = 'waTyping';
+    el.innerHTML = '<span></span><span></span><span></span>';
+    body.appendChild(el);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function waRemoveTyping() {
+    var el = document.getElementById('waTyping');
+    if (el) el.remove();
+  }
+
+  function waSetQuickReplies(replies) {
+    var qr = document.getElementById('waQuickReplies');
+    qr.innerHTML = '';
+    if (!replies || !replies.length) return;
+    replies.forEach(function(r) {
+      var btn = document.createElement('button');
+      btn.className = 'wa-qr-btn';
+      btn.textContent = r.label;
+      btn.onclick = function() {
+        waHandleQR(r.label, r.key);
+      };
+      qr.appendChild(btn);
+    });
+  }
+
+  function waHandleQR(label, key) {
+    waSetQuickReplies([]);
+    if (key === 'openwa') {
+      window.open('https://wa.me/' + WA_NUMBER + '?text=Hi%20Lokendra!%20I%20visited%20your%20website%20and%20would%20like%20to%20discuss%20a%20project.', '_blank');
+      return;
+    }
+    waAddMsg(label, 'user');
+    waShowTyping();
+    setTimeout(function() {
+      waRemoveTyping();
+      var flow = waBotFlow[key] || waBotFlow.welcome;
+      waAddMsg(flow.text, 'bot');
+      waSetQuickReplies(flow.quickReplies);
+    }, 900 + Math.random() * 600);
+  }
+
+  function waDetectIntent(text) {
+    var lower = text.toLowerCase();
+    for (var i = 0; i < waKeywords.length; i++) {
+      var k = waKeywords[i];
+      for (var j = 0; j < k.words.length; j++) {
+        if (lower.indexOf(k.words[j]) !== -1) return k.key;
+      }
+    }
+    return null;
+  }
+
+  function waSendUserMsg() {
+    var input = document.getElementById('waInput');
+    var text  = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    waSetQuickReplies([]);
+    waAddMsg(text, 'user');
+
+    var intent = waDetectIntent(text);
+    waShowTyping();
+    setTimeout(function() {
+      waRemoveTyping();
+      if (intent) {
+        var flow = waBotFlow[intent];
+        waAddMsg(flow.text, 'bot');
+        waSetQuickReplies(flow.quickReplies);
+      } else {
+        waAddMsg(
+          "Thanks for your message! 😊\n\nI'll pass this to Lokendra right away. For the fastest response, tap *Continue on WhatsApp* below — he's usually online!",
+          'bot'
+        );
+        waSetQuickReplies([
+          { label: '💬 Open WhatsApp', key: 'openwa' },
+          { label: '🔙 Main Menu', key: 'welcome' }
+        ]);
+      }
+    }, 1000 + Math.random() * 800);
+  }
+
+  function waHandleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      waSendUserMsg();
+    }
+  }
+
+  function toggleWaChat() {
+    waOpen = !waOpen;
+    var win  = document.getElementById('waWindow');
+    var icoO = document.getElementById('waIconOpen');
+    var icoC = document.getElementById('waIconClose');
+    var badge = document.getElementById('waBadge');
+
+    if (waOpen) {
+      win.classList.add('open');
+      icoO.style.display = 'none';
+      icoC.style.display = 'block';
+      badge.style.display = 'none';
+      if (!waInitialized) {
+        waInitialized = true;
+        /* Show first bot message after short delay */
+        setTimeout(function() {
+          waAddMsg(waBotFlow.welcome.text, 'bot');
+          waSetQuickReplies(waBotFlow.welcome.quickReplies);
+        }, 500);
+      }
+    } else {
+      win.classList.remove('open');
+      icoO.style.display = 'block';
+      icoC.style.display = 'none';
+    }
+  }
+
+  /* Show badge after 3s to grab attention */
+  setTimeout(function() {
+    var badge = document.getElementById('waBadge');
+    if (badge && !waOpen) badge.style.display = 'flex';
+  }, 3000);
   </script>
 
   <script src="script.js"></script>
 </body>
 </html>
-
