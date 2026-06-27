@@ -594,7 +594,7 @@
           <div class="hero-img-ring"></div>
           <img src="img/1.png" alt="Lokendra Bayak — Actor, Video Editor, Music Creator from Nepal" class="hero-img" onerror="this.src='https://via.placeholder.com/500x620/f7f7f7/111111?text=LB'"/>
           <div class="hero-img-badge">
-            <span>301K+</span>
+            <span data-yt-field="subscribers">301K+</span>
             <small>Subscribers</small>
           </div>
         </div>
@@ -613,8 +613,8 @@
         </div>
         <p class="hero-tagline fade-up">Creating stories, visuals, and digital experiences that connect with millions.</p>
         <div class="hero-badges fade-up">
-          <div class="badge"><strong>301K+</strong><span>Subscribers</span></div>
-          <div class="badge"><strong>10M+</strong><span>Views</span></div>
+          <div class="badge"><strong data-yt-field="subscribers">301K+</strong><span>Subscribers</span></div>
+          <div class="badge"><strong data-yt-field="views">10M+</strong><span>Views</span></div>
           <div class="badge"><strong>500+</strong><span>Projects</span></div>
         </div>
         <div class="hero-btns fade-up">
@@ -692,12 +692,12 @@
     <div class="container">
       <div class="stats-grid">
         <div class="stat-item fade-in">
-          <div class="stat-num" data-count="301">0</div>
+          <div class="stat-num" data-count="301" data-yt-field="subscribers">0</div>
           <div class="stat-suffix">K+</div>
           <div class="stat-label">Subscribers</div>
         </div>
         <div class="stat-item fade-in">
-          <div class="stat-num" data-count="10">0</div>
+          <div class="stat-num" data-count="10" data-yt-field="views">0</div>
           <div class="stat-suffix">M+</div>
           <div class="stat-label">Total Views</div>
         </div>
@@ -842,9 +842,9 @@
       <div class="section-label">YouTube Channel</div>
       <h2 class="section-title centered">@Lokendra_bayak</h2>
       <div class="yt-meta-row">
-        <div class="yt-meta"><strong>301K+</strong><span>Subscribers</span></div>
-        <div class="yt-meta"><strong>10M+</strong><span>Total Views</span></div>
-        <div class="yt-meta"><strong>200+</strong><span>Videos</span></div>
+        <div class="yt-meta"><strong data-yt-field="subscribers">301K+</strong><span>Subscribers</span></div>
+        <div class="yt-meta"><strong data-yt-field="views">10M+</strong><span>Total Views</span></div>
+        <div class="yt-meta"><strong data-yt-field="videos">200+</strong><span>Videos</span></div>
         <div class="yt-meta"><strong>Nepal</strong><span>Based Creator</span></div>
       </div>
       <div class="yt-highlights">
@@ -1185,7 +1185,9 @@ const CONFIG = {
   EMAILJS_PUBLIC_KEY: "WqjAbjA0htqJBcvXz",
   EMAILJS_SERVICE_ID: "service_ryuhjma",
   EMAILJS_TEMPLATE_ID: "template_mhhfryi",
-  WHATSAPP_NUMBER: "9779843899427"
+  WHATSAPP_NUMBER: "9779843899427",
+  YOUTUBE_API_KEY: "AIzaSyAUqH_Lr3OSolFYYxbjKLOTnyqb43Kkf3w",
+  YOUTUBE_HANDLE: "Lokendra_bayak"
 };
 
 
@@ -1198,6 +1200,77 @@ const CONFIG = {
     emailjs.init(CONFIG.EMAILJS_PUBLIC_KEY);
   }
 })();
+
+
+/* ════════════════════════════════════════════
+   LIVE YOUTUBE STATS
+   Pulls subscriberCount / viewCount / videoCount
+   from the YouTube Data API and updates every
+   element on the page tagged with data-yt-field.
+════════════════════════════════════════════ */
+
+function formatCompact(num) {
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M+";
+  if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, "") + "K+";
+  return num + "+";
+}
+
+// Updates an animated stat-num counter (the dark stats bar).
+// If it hasn't counted up yet (still showing "0"), just change its target
+// (data-count) so the existing scroll animation lands on the live number.
+// If it already finished animating, override the displayed number directly.
+function updateStatNum(el, value) {
+  el.setAttribute("data-count", value);
+  if (el.textContent !== "0") {
+    el.textContent = value;
+  }
+}
+
+async function loadLiveYoutubeStats() {
+  if (!CONFIG.YOUTUBE_API_KEY || CONFIG.YOUTUBE_API_KEY.includes("PASTE_YOUR")) {
+    return; // key not set yet — leave the static numbers as they are
+  }
+
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/channels?part=statistics&forHandle=${CONFIG.YOUTUBE_HANDLE}&key=${CONFIG.YOUTUBE_API_KEY}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.items || !data.items.length) {
+      console.warn("YouTube API: channel not found for handle", CONFIG.YOUTUBE_HANDLE);
+      return;
+    }
+
+    const stats = data.items[0].statistics;
+    const subs = parseInt(stats.subscriberCount, 10);
+    const views = parseInt(stats.viewCount, 10);
+    const videos = parseInt(stats.videoCount, 10);
+
+    document.querySelectorAll('[data-yt-field="subscribers"]').forEach((el) => {
+      if (el.classList.contains("stat-num")) {
+        updateStatNum(el, Math.round(subs / 1000)); // matches the "K+" suffix already in the HTML
+      } else {
+        el.textContent = formatCompact(subs);
+      }
+    });
+
+    document.querySelectorAll('[data-yt-field="views"]').forEach((el) => {
+      if (el.classList.contains("stat-num")) {
+        updateStatNum(el, Math.round(views / 1_000_000)); // matches the "M+" suffix already in the HTML
+      } else {
+        el.textContent = formatCompact(views);
+      }
+    });
+
+    document.querySelectorAll('[data-yt-field="videos"]').forEach((el) => {
+      el.textContent = videos + "+";
+    });
+  } catch (err) {
+    console.error("Could not load live YouTube stats:", err);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", loadLiveYoutubeStats);
+setInterval(loadLiveYoutubeStats, 5 * 60 * 1000); // refresh every 5 minutes
 
 
 /* ════════════════════════════════════════════
