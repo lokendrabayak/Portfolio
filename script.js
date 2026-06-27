@@ -1,4 +1,4 @@
-    /* =========================================
+/* =========================================
     LOKENDRA BAYAK — Premium Personal Brand
     script.js
     ========================================= */
@@ -224,29 +224,12 @@
     });
 
 
-    // ─── CONTACT FORM ─────────────────────────────
-    const contactForm = document.getElementById('contactForm');
-    const formSuccess = document.getElementById('formSuccess');
-
-    if (contactForm) {
-    contactForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const btn = contactForm.querySelector('.btn-primary');
-        btn.textContent = 'Sending...';
-        btn.style.opacity = '0.7';
-
-        setTimeout(() => {
-        btn.textContent = 'Send Message →';
-        btn.style.opacity = '1';
-        formSuccess.classList.add('show');
-        contactForm.reset();
-
-        setTimeout(() => {
-            formSuccess.classList.remove('show');
-        }, 5000);
-        }, 1200);
-    });
-    }
+    // NOTE: the contact form's real submit handling (EmailJS send + the
+    // formSuccess/formError messages) now lives entirely in index.html's
+    // sendEmail() function. The old fake handler that used to live here
+    // (the one with the setTimeout "Send Message →" reset) has been removed
+    // — it was firing alongside the real one and showing a fake success
+    // message even on failed sends.
 
 
     // ─── ACTIVE NAV HIGHLIGHT ─────────────────────
