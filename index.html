@@ -484,6 +484,21 @@
     }
 
     /* ══════════════════════════════════════════
+       LATEST UPLOADS — live video cards
+    ══════════════════════════════════════════ */
+    .yt-vid-card { cursor: pointer; }
+    .yt-thumb { position: relative; overflow: hidden; }
+    .yt-thumb iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .yt-videos.is-loading .yt-vid-card { opacity: 0.45; pointer-events: none; }
+    .yt-videos-empty {
+      width: 100%;
+      text-align: center;
+      color: #888;
+      font-size: 13px;
+      padding: 20px 0;
+    }
+
+    /* ══════════════════════════════════════════
        CONTACT FORM STATES
     ══════════════════════════════════════════ */
     .form-sending-overlay {
@@ -864,7 +879,11 @@
           <p>Open to collaborations, sponsored content, and long-term brand ambassador roles that align with the community's values.</p>
         </div>
       </div>
-      <div class="yt-videos">
+
+      <!-- LATEST UPLOADS — auto-populated live from the YouTube Data API, see CONFIG below.
+           The three cards below are a static fallback shown only if the API key is missing
+           or the request fails; loadLatestUploads() replaces them with real data on load. -->
+      <div class="yt-videos" id="ytVideos">
         <div class="yt-vid-card fade-in">
           <div class="yt-thumb">
             <img src="https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=360&h=200&fit=crop" alt="Behind The Scenes Short Film"/>
@@ -887,6 +906,7 @@
           <div class="yt-vid-info"><h4>Nepal Travel Documentary</h4><span>1.2M views</span></div>
         </div>
       </div>
+
       <div class="yt-cta">
         <a href="https://www.youtube.com/@Lokendra_bayak" target="_blank" class="btn-yt">
           <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M23.5 6.2s-.2-1.6-.9-2.3c-.9-.9-1.9-.9-2.3-1C17.6 2.7 12 2.7 12 2.7s-5.6 0-8.3.2c-.4 0-1.4.1-2.3 1C.7 4.6.5 6.2.5 6.2S.3 8.1.3 10v1.8c0 1.9.2 3.8.2 3.8s.2 1.6.9 2.3c.9.9 2 .8 2.6.9C5.8 19 12 19 12 19s5.6 0 8.3-.2c.4 0 1.4-.1 2.3-1 .7-.7.9-2.3.9-2.3s.2-1.9.2-3.8V10c0-1.9-.2-3.8-.2-3.8zM9.7 14.5V8.8l6.3 2.9-6.3 2.8z"/></svg>
@@ -1187,7 +1207,9 @@ const CONFIG = {
   EMAILJS_TEMPLATE_ID: "template_mhhfryi",
   WHATSAPP_NUMBER: "9779843899427",
   YOUTUBE_API_KEY: "AIzaSyAUqH_Lr3OSolFYYxbjKLOTnyqb43Kkf3w",
-  YOUTUBE_HANDLE: "Lokendra_bayak"
+  YOUTUBE_HANDLE: "Lokendra_bayak",
+  LATEST_VIDEOS_COUNT: 3,          // how many recent uploads to show in the "YouTube Channel" section
+  LATEST_VIDEOS_CACHE_MINUTES: 30  // how long to reuse cached results before re-fetching
 };
 
 
@@ -1271,6 +1293,166 @@ async function loadLiveYoutubeStats() {
 
 document.addEventListener("DOMContentLoaded", loadLiveYoutubeStats);
 setInterval(loadLiveYoutubeStats, 5 * 60 * 1000); // refresh every 5 minutes
+
+
+/* ════════════════════════════════════════════
+   LATEST UPLOADS — live "recently uploaded" cards
+   in the YouTube Channel section.
+
+   How it works:
+   1. Look up (and cache for 24h) the channel's
+      "uploads" playlist ID — YouTube keeps this
+      playlist sorted newest-first automatically.
+   2. Pull the most recent N items from that playlist
+      (title, thumbnail, video ID).
+   3. Pull view counts for those video IDs.
+   4. Render real <div class="yt-vid-card"> elements
+      into #ytVideos, replacing the static placeholders.
+   5. Clicking a card plays the video inline via an
+      embedded iframe (no need to leave the page).
+
+   Results are cached in localStorage so the page
+   doesn't hit the API on every single visit.
+════════════════════════════════════════════ */
+
+function ytCacheGet(key, maxAgeMinutes) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - parsed.t > maxAgeMinutes * 60 * 1000) return null;
+    return parsed.v;
+  } catch (err) {
+    return null;
+  }
+}
+
+function ytCacheSet(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: value }));
+  } catch (err) {
+    // localStorage unavailable (private mode, quota, etc.) — fine, just skip caching
+  }
+}
+
+async function getUploadsPlaylistId() {
+  const cached = ytCacheGet("yt_uploads_playlist_id", 24 * 60); // cache 24h, this rarely changes
+  if (cached) return cached;
+
+  const res = await fetch(
+    `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&forHandle=${CONFIG.YOUTUBE_HANDLE}&key=${CONFIG.YOUTUBE_API_KEY}`
+  );
+  const data = await res.json();
+  const playlistId = data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+  if (playlistId) ytCacheSet("yt_uploads_playlist_id", playlistId);
+  return playlistId || null;
+}
+
+async function fetchLatestUploads(maxResults) {
+  const playlistId = await getUploadsPlaylistId();
+  if (!playlistId) return [];
+
+  const plRes = await fetch(
+    `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=${maxResults}&key=${CONFIG.YOUTUBE_API_KEY}`
+  );
+  const plData = await plRes.json();
+  const items = plData.items || [];
+  if (!items.length) return [];
+
+  const videoIds = items
+    .map((i) => i.snippet?.resourceId?.videoId)
+    .filter(Boolean)
+    .join(",");
+
+  // Second call just to get view counts (playlistItems doesn't include statistics)
+  let statsById = {};
+  if (videoIds) {
+    const vidRes = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoIds}&key=${CONFIG.YOUTUBE_API_KEY}`
+    );
+    const vidData = await vidRes.json();
+    (vidData.items || []).forEach((v) => { statsById[v.id] = v.statistics; });
+  }
+
+  return items
+    .filter((i) => i.snippet?.resourceId?.videoId)
+    .map((i) => {
+      const id = i.snippet.resourceId.videoId;
+      const viewCount = statsById[id]?.viewCount;
+      return {
+        id,
+        title: i.snippet.title,
+        thumb:
+          i.snippet.thumbnails?.medium?.url ||
+          i.snippet.thumbnails?.high?.url ||
+          i.snippet.thumbnails?.default?.url ||
+          "",
+        views: viewCount ? formatCompact(parseInt(viewCount, 10)).replace("+", "") + " views" : ""
+      };
+    });
+}
+
+function renderLatestUploads(videos) {
+  const container = document.getElementById("ytVideos");
+  if (!container) return;
+
+  if (!videos.length) return; // keep the static fallback cards already in the HTML
+
+  container.innerHTML = videos
+    .map(
+      (v) => `
+      <div class="yt-vid-card fade-in" data-video-id="${v.id}" onclick="playLatestUploadInline(this)" title="Click to play">
+        <div class="yt-thumb">
+          <img src="${v.thumb}" alt="${escapeHTML(v.title)}" loading="lazy"/>
+          <div class="yt-play">▶</div>
+        </div>
+        <div class="yt-vid-info"><h4>${escapeHTML(v.title)}</h4><span>${v.views}</span></div>
+      </div>
+    `
+    )
+    .join("");
+}
+
+// Swaps a card's thumbnail for a live embedded player when clicked.
+function playLatestUploadInline(cardEl) {
+  const videoId = cardEl.getAttribute("data-video-id");
+  if (!videoId) return;
+  if (cardEl.querySelector("iframe")) return; // already playing
+
+  const thumbWrap = cardEl.querySelector(".yt-thumb");
+  if (!thumbWrap) return;
+
+  thumbWrap.innerHTML = `
+    <iframe
+      src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0"
+      title="YouTube video player"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen
+      loading="lazy">
+    </iframe>
+  `;
+}
+
+async function loadLatestUploads() {
+  if (!CONFIG.YOUTUBE_API_KEY || CONFIG.YOUTUBE_API_KEY.includes("PASTE_YOUR")) {
+    return; // no key — keep the static fallback cards already in the HTML
+  }
+
+  try {
+    let videos = ytCacheGet("yt_latest_uploads", CONFIG.LATEST_VIDEOS_CACHE_MINUTES);
+    if (!videos) {
+      videos = await fetchLatestUploads(CONFIG.LATEST_VIDEOS_COUNT);
+      if (videos.length) ytCacheSet("yt_latest_uploads", videos);
+    }
+    renderLatestUploads(videos);
+  } catch (err) {
+    console.error("Could not load latest uploads:", err);
+    // leave the static fallback cards in place
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => loadLatestUploads());
+setInterval(loadLatestUploads, 5 * 60 * 1000); // re-check every 5 minutes (cache decides if it actually re-fetches)
 
 
 /* ════════════════════════════════════════════
