@@ -1401,7 +1401,7 @@ function renderLatestUploads(videos) {
   container.innerHTML = videos
     .map(
       (v) => `
-      <div class="yt-vid-card fade-in" data-video-id="${v.id}" onclick="playLatestUploadInline(this)" title="Click to play">
+      <div class="yt-vid-card" data-video-id="${v.id}" onclick="playLatestUploadInline(this)" title="Click to play">
         <div class="yt-thumb">
           <img src="${v.thumb}" alt="${escapeHTML(v.title)}" loading="lazy"/>
           <div class="yt-play">▶</div>
