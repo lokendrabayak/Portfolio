@@ -261,3 +261,139 @@
     const scrolled = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
     document.documentElement.style.setProperty('--scroll-progress', scrolled + '%');
     }, { passive: true });
+
+
+    // ─── WHATSAPP CHAT WIDGET (free, no backend) ─
+    // The widget now lets visitors type their OWN message instead of the
+    // one fixed canned line that used to live only in the href. On send,
+    // the message is shown in the mini chat UI, then handed off to
+    // WhatsApp's free wa.me deep link with their exact text pre-filled —
+    // so it opens their WhatsApp (app or web) ready to actually deliver it.
+    // No paid API, no server, no third-party chat service required.
+    (function initWhatsAppWidget() {
+    const waFab       = document.getElementById('waFab');
+    const waWindow    = document.getElementById('waWindow');
+    const waCloseBtn  = document.getElementById('waCloseBtn');
+    const waBadge     = document.getElementById('waBadge');
+    const waIconOpen  = document.getElementById('waIconOpen');
+    const waIconClose = document.getElementById('waIconClose');
+    const waBody      = document.getElementById('waBody');
+    const waInput     = document.getElementById('waInput');
+    const waSendBtn   = document.getElementById('waSendBtn');
+
+    if (!waFab || !waWindow || !waBody || !waInput || !waSendBtn) return;
+
+    const WA_NUMBER = '9779843899427';
+    let hasGreeted = false;
+
+    // Don't keep nagging returning visitors with the red badge
+    try {
+        if (localStorage.getItem('waBadgeSeen') && waBadge) {
+        waBadge.style.display = 'none';
+        }
+    } catch (e) { /* localStorage unavailable — ignore, badge just stays */ }
+
+    function formatTime() {
+        const now = new Date();
+        let h = now.getHours();
+        const m = now.getMinutes().toString().padStart(2, '0');
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12 || 12;
+        return `${h}:${m} ${ampm}`;
+    }
+
+    function addMessage(text, sender) {
+        const msg = document.createElement('div');
+        msg.className = `wa-msg ${sender}`;
+
+        const bubble = document.createElement('div');
+        bubble.className = 'wa-bubble';
+        bubble.textContent = text;
+
+        const time = document.createElement('span');
+        time.className = 'wa-time';
+        time.textContent = formatTime();
+
+        msg.appendChild(bubble);
+        msg.appendChild(time);
+        waBody.appendChild(msg);
+        waBody.scrollTop = waBody.scrollHeight;
+        return msg;
+    }
+
+    function addTyping() {
+        const typing = addMessage('Typing…', 'bot');
+        typing.classList.add('wa-typing-placeholder');
+        return typing;
+    }
+
+    function openWindow() {
+        waWindow.classList.add('open');
+        waFab.setAttribute('aria-expanded', 'true');
+        if (waIconOpen) waIconOpen.style.display = 'none';
+        if (waIconClose) waIconClose.style.display = 'block';
+        if (waBadge) waBadge.style.display = 'none';
+        try { localStorage.setItem('waBadgeSeen', '1'); } catch (e) {}
+
+        if (!hasGreeted) {
+        hasGreeted = true;
+        const typing = addTyping();
+        setTimeout(() => {
+            typing.remove();
+            addMessage("Hii ! Have a question or need assistance? Send us a message below, and we'll respond via WhatsApp shortly.", 'bot');
+            waInput.focus();
+        }, 900);
+        } else {
+        waInput.focus();
+        }
+    }
+
+    function closeWindow() {
+        waWindow.classList.remove('open');
+        waFab.setAttribute('aria-expanded', 'false');
+        if (waIconOpen) waIconOpen.style.display = 'block';
+        if (waIconClose) waIconClose.style.display = 'none';
+    }
+
+    waFab.addEventListener('click', () => {
+        if (waWindow.classList.contains('open')) {
+        closeWindow();
+        } else {
+        openWindow();
+        }
+    });
+
+    if (waCloseBtn) waCloseBtn.addEventListener('click', closeWindow);
+
+    // Auto-grow the textarea as the visitor types
+    waInput.addEventListener('input', () => {
+        waInput.style.height = 'auto';
+        waInput.style.height = Math.min(waInput.scrollHeight, 80) + 'px';
+    });
+
+    function sendMessage() {
+        const text = waInput.value.trim();
+        if (!text) return;
+
+        addMessage(text, 'user');
+        waInput.value = '';
+        waInput.style.height = 'auto';
+
+        const typing = addTyping();
+        setTimeout(() => {
+        typing.remove();
+        addMessage('Opening WhatsApp so you can send that to me directly 👇', 'bot');
+        const url = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(text)}`;
+        window.open(url, '_blank', 'noopener');
+        }, 650);
+    }
+
+    waSendBtn.addEventListener('click', sendMessage);
+
+    waInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+        }
+    });
+    })();
