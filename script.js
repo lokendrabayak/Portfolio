@@ -1,4 +1,67 @@
+// ─── LATEST VIDEO POPUP ────────────────────────
+(function initVideoPopup() {
+  const overlay   = document.getElementById('videoPopupOverlay');
+  const closeBtn  = document.getElementById('videoPopupClose');
+  const thumbEl   = document.getElementById('videoPopupThumb');
+  const imgEl     = document.getElementById('videoPopupImg');
+  const titleEl   = document.getElementById('videoPopupTitle');
+  const viewsEl   = document.getElementById('videoPopupViews');
+  const watchLink = document.getElementById('videoPopupWatch');
 
+  if (!overlay) return;
+
+  const SHOWN_KEY = 'latestVideoPopupShown';
+
+  function openPopup(video) {
+    imgEl.src = video.thumb;
+    imgEl.alt = video.title;
+    titleEl.textContent = video.title;
+    viewsEl.textContent = video.views || '';
+    watchLink.href = `https://www.youtube.com/watch?v=${video.id}`;
+
+    thumbEl.onclick = () => {
+      if (thumbEl.querySelector('iframe')) return;
+      thumbEl.innerHTML = `
+        <iframe src="https://www.youtube.com/embed/${video.id}?autoplay=1&rel=0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen loading="lazy"></iframe>`;
+    };
+
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closePopup() {
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  closeBtn.addEventListener('click', closePopup);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closePopup(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePopup(); });
+
+  async function maybeShowPopup() {
+    try {
+      if (sessionStorage.getItem(SHOWN_KEY)) return;
+    } catch (e) {}
+
+    try {
+      let videos = cacheGet('yt_latest_videos', YT_CONFIG.CACHE_MIN);
+      if (!videos) {
+        videos = await fetchLatestVideos();
+        if (videos.length) cacheSet('yt_latest_videos', videos);
+      }
+      if (videos && videos.length) {
+        setTimeout(() => openPopup(videos[0]), 1800);
+        try { sessionStorage.setItem(SHOWN_KEY, '1'); } catch (e) {}
+      }
+    } catch (err) {
+      console.error('Video popup error:', err);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', maybeShowPopup);
+})();
 
     // ─── NAVBAR SCROLL ───────────────────────────
     const navbar = document.getElementById('navbar');

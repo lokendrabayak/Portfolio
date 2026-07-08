@@ -94,6 +94,57 @@ button { cursor: pointer; font-family: var(--font); border: none; background: no
 .nav-links a { font-size: 13.5px; font-weight: 500; color: var(--mid); transition: color .2s; }
 .nav-links a:hover, .nav-links a.active { color: var(--accent); }
 
+
+/* ── LATEST VIDEO POPUP ─────────────────── */
+.video-popup-overlay {
+  position: fixed; inset: 0; background: rgba(10,10,10,.7); z-index: 3000;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  opacity: 0; pointer-events: none; transition: opacity .35s; backdrop-filter: blur(6px);
+}
+.video-popup-overlay.active { opacity: 1; pointer-events: all; }
+
+.video-popup-box {
+  background: var(--white); border-radius: var(--radius);
+  max-width: 400px; width: 100%; padding: 20px;
+  position: relative; transform: translateY(20px) scale(.96);
+  transition: transform .35s cubic-bezier(.4,0,.2,1);
+  box-shadow: 0 24px 64px rgba(0,0,0,.3);
+}
+.video-popup-overlay.active .video-popup-box { transform: translateY(0) scale(1); }
+
+.video-popup-close {
+  position: absolute; top: 14px; right: 14px; font-size: 15px; color: var(--muted);
+  background: var(--gray-bg); width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .2s, background .2s; z-index: 2;
+}
+.video-popup-close:hover { color: var(--dark); background: var(--border); }
+
+.video-popup-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 12px;
+}
+
+.video-popup-thumb {
+  position: relative; aspect-ratio: 16/9; border-radius: 10px; overflow: hidden;
+  background: var(--gray-bg); margin-bottom: 14px; cursor: pointer;
+}
+.video-popup-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.video-popup-thumb iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.video-popup-play {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.35); color: #fff; font-size: 26px; transition: background .2s;
+}
+.video-popup-thumb:hover .video-popup-play { background: rgba(0,0,0,.5); }
+
+.video-popup-box h3 { font-size: 16px; font-weight: 700; color: var(--dark); margin-bottom: 4px; line-height: 1.4; }
+.video-popup-box p  { font-size: 12.5px; color: var(--muted); margin-bottom: 16px; }
+.video-popup-box .btn-yt { width: 100%; justify-content: center; }
+
+@media (max-width: 480px) {
+  .video-popup-box { max-width: 92vw; padding: 16px; }
+}
+
 /* ── SOCIAL ICONS (shared) ──────────────── */
 .nav-social { display: flex; align-items: center; gap: 12px; }
 
